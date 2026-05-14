@@ -86,12 +86,12 @@ public class AuthController {
     @GetMapping("/oauth2/authorize/{provider}")
     public ResponseEntity<MessageResponse> authorizeRedirect(@PathVariable String provider) {
         if ("google".equalsIgnoreCase(provider)
-                && (googleClientId == null || googleClientId.isBlank() || googleClientId.contains("YOUR_"))) {
+                && (googleClientId == null || googleClientId.isBlank())) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("google OAuth is not configured on the server"));
         }
         if ("github".equalsIgnoreCase(provider)
-                && (githubClientId == null || githubClientId.isBlank() || githubClientId.contains("YOUR_"))) {
+                && (githubClientId == null || githubClientId.isBlank())) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("github OAuth is not configured on the server"));
         }

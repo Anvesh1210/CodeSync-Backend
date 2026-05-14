@@ -45,6 +45,9 @@ public interface AuthServiceClient {
     @PutMapping("/auth/profile")
     Object editProfile(@RequestHeader("Authorization") String token, @RequestBody Object profileDetails);
 
+    @PutMapping("/auth/password")
+    Object changePassword(@RequestHeader("Authorization") String token, @RequestBody Object passwordData);
+
     @PutMapping("/auth/admin/users/{id}/suspend")
     Object suspendUser(@PathVariable("id") String id);
 

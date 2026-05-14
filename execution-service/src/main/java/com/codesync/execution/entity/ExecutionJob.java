@@ -36,6 +36,8 @@ public class ExecutionJob {
     @Column(columnDefinition = "TEXT")
     private String stdin;
 
+    private String fileName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private JobStatus status;

@@ -126,10 +126,6 @@ public class PaymentService {
         if (status == Transaction.TransactionStatus.SUCCESS) {
             UUID userId = transaction.getUserId();
             
-            // Determine duration based on amount
-            // Pro Monthly: 1249, Pro Yearly: 11988
-            long monthsToAdd = (transaction.getAmount() >= 10000) ? 12 : 1;
-
             // Create or update subscription
             Subscription subscription = subscriptionRepository.findByUserId(userId)
                     .orElse(Subscription.builder().userId(userId).build());
@@ -137,17 +133,34 @@ public class PaymentService {
             subscription.setPlanType(Subscription.PlanType.PRO);
             subscription.setStatus(Subscription.SubscriptionStatus.ACTIVE);
             
+            // Determine duration and type based on amount
+            // Individual: 1249 (Monthly), 11988 (Yearly)
+            // Team: 4999 (Monthly), 49999 (Yearly)
+            long monthsToAdd = 1;
+            if (transaction.getAmount() >= 49999) {
+                monthsToAdd = 12;
+                subscription.setBillingCycle(Subscription.BillingCycle.YEARLY);
+                subscription.setEntityType(Subscription.EntityType.TEAM);
+            } else if (transaction.getAmount() >= 11988) {
+                monthsToAdd = 12;
+                subscription.setBillingCycle(Subscription.BillingCycle.YEARLY);
+                subscription.setEntityType(Subscription.EntityType.INDIVIDUAL);
+            } else if (transaction.getAmount() >= 4999) {
+                monthsToAdd = 1;
+                subscription.setBillingCycle(Subscription.BillingCycle.MONTHLY);
+                subscription.setEntityType(Subscription.EntityType.TEAM);
+            } else {
+                monthsToAdd = 1;
+                subscription.setBillingCycle(Subscription.BillingCycle.MONTHLY);
+                subscription.setEntityType(Subscription.EntityType.INDIVIDUAL);
+            }
+
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime currentExpiry = subscription.getExpiryDate();
             
             // If subscription is active, extend from current expiry, else start from now
             if (currentExpiry != null && currentExpiry.isAfter(now)) {
                 subscription.setExpiryDate(currentExpiry.plusMonths(monthsToAdd));
-                // We keep the original startDate but update lastPurchaseDate if we had one
-                // For simplicity, user requested "purchase date should store in db"
-                // Let's treat startDate as the very first purchase and lastPurchaseDate as... last purchase.
-                // But the entity doesn't have lastPurchaseDate. I'll just update startDate to 'now' 
-                // for the most recent purchase event as requested.
                 subscription.setStartDate(now); 
             } else {
                 subscription.setStartDate(now);
@@ -159,7 +172,7 @@ public class PaymentService {
             // Update auth-service
             authClient.updatePremiumStatus(AuthClient.PremiumUpdateRequest.builder()
                     .userId(userId)
-                    .isPremium(true)
+                    .premium(true)
                     .planType("PRO")
                     .subscriptionStart(subscription.getStartDate())
                     .subscriptionExpiry(subscription.getExpiryDate())
@@ -183,7 +196,6 @@ public class PaymentService {
         // For brevity, logic omitted but follows similar pattern to verifyPayment
     }
 
-    @Transactional
     public void cancelSubscription(UUID userId) {
         subscriptionRepository.findByUserId(userId).ifPresent(sub -> {
             sub.setStatus(Subscription.SubscriptionStatus.CANCELLED);
@@ -191,10 +203,19 @@ public class PaymentService {
             
             authClient.updatePremiumStatus(AuthClient.PremiumUpdateRequest.builder()
                     .userId(userId)
-                    .isPremium(false)
+                    .premium(false)
                     .planType("FREE")
                     .subscriptionExpiry(null)
                     .build());
         });
+    }
+
+    // ── Admin methods ────────────────────────────────────────────────────────
+    public java.util.List<Subscription> getAllSubscriptions() {
+        return subscriptionRepository.findAll();
+    }
+
+    public java.util.List<Transaction> getAllTransactions() {
+        return transactionRepository.findAll();
     }
 }

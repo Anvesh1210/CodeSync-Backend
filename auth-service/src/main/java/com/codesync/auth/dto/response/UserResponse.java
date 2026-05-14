@@ -23,10 +23,13 @@ public class UserResponse {
     private String avatarUrl;
     private AuthProvider provider;
     private boolean isActive;
-    private boolean isPremium;
+    private boolean premium;
     private String planType;
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime subscriptionStart;
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime subscriptionExpiry;
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
     private String bio;
 }

@@ -20,15 +20,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectController {
 
     private final ProjectServiceClient projectServiceClient;
+    private final com.codesync.website.service.EditorIntegrationService editorIntegrationService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @GetMapping
     public ResponseEntity<ApiResponse<Object>> getAllProjects() {
-        return ResponseEntity.ok(ApiResponse.success(projectServiceClient.getAllProjects(), "All projects fetched"));
+        Object response = projectServiceClient.getAllProjects();
+        java.util.List<com.codesync.website.dto.ProjectDto> projects = objectMapper.convertValue(response, 
+            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.codesync.website.dto.ProjectDto>>() {});
+        editorIntegrationService.enrichProjects(projects);
+        return ResponseEntity.ok(ApiResponse.success(projects, "All projects fetched"));
     }
 
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<Object>> getPublicProjects() {
-        return ResponseEntity.ok(ApiResponse.success(projectServiceClient.getPublicProjects(), "Public projects fetched"));
+        Object response = projectServiceClient.getPublicProjects();
+        java.util.List<com.codesync.website.dto.ProjectDto> projects = objectMapper.convertValue(response, 
+            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.codesync.website.dto.ProjectDto>>() {});
+        editorIntegrationService.enrichProjects(projects);
+        return ResponseEntity.ok(ApiResponse.success(projects, "Public projects fetched"));
     }
 
     @GetMapping("/{projectId}")
@@ -46,22 +56,37 @@ public class ProjectController {
         // Prefer callerId from token if available, otherwise fallback to param
         String effectiveUserId = (callerId != null) ? callerId : userId;
         
-        return ResponseEntity.ok(ApiResponse.success(projectServiceClient.getProjectById(projectId, effectiveUserId, callerRole), "Project fetched"));
+        Object response = projectServiceClient.getProjectById(projectId, effectiveUserId, callerRole);
+        com.codesync.website.dto.ProjectDto project = objectMapper.convertValue(response, com.codesync.website.dto.ProjectDto.class);
+        editorIntegrationService.enrichProjects(java.util.List.of(project));
+        return ResponseEntity.ok(ApiResponse.success(project, "Project fetched"));
     }
 
     @GetMapping("/owner/{ownerId}")
     public ResponseEntity<ApiResponse<Object>> getProjectsByOwner(@PathVariable String ownerId) {
-        return ResponseEntity.ok(ApiResponse.success(projectServiceClient.getProjectsByOwner(ownerId), "Projects by owner fetched"));
+        Object response = projectServiceClient.getProjectsByOwner(ownerId);
+        java.util.List<com.codesync.website.dto.ProjectDto> projects = objectMapper.convertValue(response, 
+            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.codesync.website.dto.ProjectDto>>() {});
+        editorIntegrationService.enrichProjects(projects);
+        return ResponseEntity.ok(ApiResponse.success(projects, "Projects by owner fetched"));
     }
 
     @GetMapping("/member/{memberUserId}")
     public ResponseEntity<ApiResponse<Object>> getProjectsByMember(@PathVariable String memberUserId) {
-        return ResponseEntity.ok(ApiResponse.success(projectServiceClient.getProjectsByMember(memberUserId), "Projects by member fetched"));
+        Object response = projectServiceClient.getProjectsByMember(memberUserId);
+        java.util.List<com.codesync.website.dto.ProjectDto> projects = objectMapper.convertValue(response, 
+            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.codesync.website.dto.ProjectDto>>() {});
+        editorIntegrationService.enrichProjects(projects);
+        return ResponseEntity.ok(ApiResponse.success(projects, "Projects by member fetched"));
     }
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<Object>> searchProjects(@RequestParam("query") String query) {
-        return ResponseEntity.ok(ApiResponse.success(projectServiceClient.searchProjects(query), "Search results fetched"));
+        Object response = projectServiceClient.searchProjects(query);
+        java.util.List<com.codesync.website.dto.ProjectDto> projects = objectMapper.convertValue(response, 
+            new com.fasterxml.jackson.core.type.TypeReference<java.util.List<com.codesync.website.dto.ProjectDto>>() {});
+        editorIntegrationService.enrichProjects(projects);
+        return ResponseEntity.ok(ApiResponse.success(projects, "Search results fetched"));
     }
 
     @GetMapping("/language/{language}")

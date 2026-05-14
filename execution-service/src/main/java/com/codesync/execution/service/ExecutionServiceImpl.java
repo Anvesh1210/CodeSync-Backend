@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.amqp.core.AmqpTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -19,7 +22,7 @@ import java.util.stream.Collectors;
 public class ExecutionServiceImpl implements ExecutionService {
 
     private final ExecutionRepository executionRepository;
-    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+    private final AmqpTemplate amqpTemplate;
     private final com.codesync.execution.config.RabbitMQConfig rabbitMQConfig;
     private final DockerService dockerService;
 
@@ -31,6 +34,7 @@ public class ExecutionServiceImpl implements ExecutionService {
         log.info("Submitting execution for user {} | language={}", request.getUserId(), request.getLanguage());
 
         if (!languageRegistry.isSupported(request.getLanguage())) {
+            log.error("Unsupported language: {}. Supported: {}", request.getLanguage(), languageRegistry.getAllConfigs().stream().map(c -> c.getName()).toList());
             throw new RuntimeException("Unsupported language: " + request.getLanguage());
         }
 
@@ -41,16 +45,24 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .language(request.getLanguage().toLowerCase())
                 .sourceCode(request.getSourceCode())
                 .stdin(request.getStdin())
-                .isPremium(request.isPremium())
+                .fileName(request.getFileName())
+                .isPremium(Boolean.TRUE.equals(request.getIsPremium()))
                 .status(JobStatus.QUEUED)
                 .build();
 
         ExecutionJob saved = executionRepository.save(job);
+        UUID jobId = saved.getJobId();
 
-        // Submit to RabbitMQ for asynchronous execution
-        rabbitTemplate.convertAndSend(com.codesync.execution.config.RabbitMQConfig.EXCHANGE_EXECUTION, 
-                                    com.codesync.execution.config.RabbitMQConfig.ROUTING_KEY_JOBS, 
-                                    saved.getJobId());
+        // Submit to RabbitMQ for asynchronous execution ONLY after transaction commits
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                log.info("Transaction committed. Sending job {} to RabbitMQ", jobId);
+                amqpTemplate.convertAndSend(com.codesync.execution.config.RabbitMQConfig.EXCHANGE_EXECUTION, 
+                                            com.codesync.execution.config.RabbitMQConfig.ROUTING_KEY_JOBS, 
+                                            jobId);
+            }
+        });
 
         return toResponse(saved);
     }
@@ -162,6 +174,11 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
+    @Override
+    public void refreshLanguages() {
+        languageRegistry.refreshCache();
+    }
+
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
     /**
@@ -184,6 +201,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .language(job.getLanguage())
                 .sourceCode(job.getSourceCode())
                 .stdin(job.getStdin())
+                .fileName(job.getFileName())
                 .status(job.getStatus())
                 .stdout(job.getStdout())
                 .stderr(job.getStderr())

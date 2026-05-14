@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  # Infrastructure
+  codesync-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Anvesh2005}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  codesync-redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+
+  codesync-rabbitmq:
+    image: rabbitmq:3.11-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-codesync}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-codesync123}
+
+  # Service Discovery
+  eureka-service:
+    build: ./eureka-service
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_HOSTNAME=eureka-service
+      - EUREKA_SERVER_PORT=8761
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8762:8762"
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - API_GATEWAY_PORT=8762
+    depends_on:
+      eureka-service:
+        condition: service_started
+
+  # Microservices
+  auth-service:
+    build: ./auth-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - AUTH_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_auth_db?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  project-service:
+    build: ./project-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - PROJECT_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_project_db?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  file-service:
+    build: ./file-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - FILE_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_file_db?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  execution-service:
+    build: ./execution-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EXECUTION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_execution_db?createDatabaseIfNotExist=true
+      - RABBITMQ_HOST=codesync-rabbitmq
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+      codesync-rabbitmq:
+        condition: service_started
+
+  notification-service:
+    build: ./notification-Service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - NOTIFICATION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_notification_db?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  payment-service:
+    build: ./payment-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - PAYMENT_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_payment?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  session-service:
+    build: ./Session-Service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - SESSION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_session_db?createDatabaseIfNotExist=true
+      - REDIS_HOST=codesync-redis
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+      codesync-redis:
+        condition: service_started
+
+  website-controller:
+    build: ./Website-Controller
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+    depends_on:
+      eureka-service:
+        condition: service_started
+
+  version-service:
+    build: ./version-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - VERSION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_version_db?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  comment-service:
+    build: ./comment-service
+    environment:
+      - EUREKA_URL=http://eureka-service:8761/eureka/
+      - COMMENT_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_comment_db?createDatabaseIfNotExist=true
+    depends_on:
+      codesync-mysql:
+        condition: service_healthy
+
+  codesync-frontend:
+    build: ../CodeSync-Frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - api-gateway
+
+volumes:
+  mysql_data:

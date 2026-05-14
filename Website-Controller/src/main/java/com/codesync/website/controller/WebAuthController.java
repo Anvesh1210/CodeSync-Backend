@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,7 +19,7 @@ public class WebAuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Object> register(@RequestBody Object user) {
-        return ResponseEntity.ok(authServiceClient.register(user));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(authServiceClient.register(user));
     }
 
     @PostMapping("/login")
@@ -58,6 +59,26 @@ public class WebAuthController {
             return ResponseEntity.status(401).body("Missing Authorization Header");
         }
         return ResponseEntity.ok(authServiceClient.getUserProfile(token));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<Object> updateProfile(
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody Object profileDetails) {
+        if (token == null) {
+            return ResponseEntity.status(401).body("Missing Authorization Header");
+        }
+        return ResponseEntity.ok(authServiceClient.editProfile(token, profileDetails));
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<Object> changePassword(
+            @org.springframework.web.bind.annotation.RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody Object passwordData) {
+        if (token == null) {
+            return ResponseEntity.status(401).body("Missing Authorization Header");
+        }
+        return ResponseEntity.ok(authServiceClient.changePassword(token, passwordData));
     }
 
     @PostMapping("/logout")

@@ -24,13 +24,15 @@ public class JobConsumer {
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_JOBS)
     public void consumeJob(UUID jobId) {
-        log.info("Received job {} from queue", jobId);
+        log.info(">>>> [JobConsumer] Received job {} from queue", jobId);
         
         ExecutionJob job = jobRepository.findById(jobId).orElse(null);
         if (job == null) {
-            log.warn("Job {} not found in repository", jobId);
+            log.error(">>>> [JobConsumer] Job {} not found in database!", jobId);
             return;
         }
+        
+        log.info(">>>> [JobConsumer] Processing job {} | Language: {}", job.getJobId(), job.getLanguage());
 
         try {
             job.setStatus(com.codesync.execution.entity.JobStatus.RUNNING);
@@ -40,8 +42,10 @@ public class JobConsumer {
             messagingTemplate.convertAndSend("/topic/execution/" + jobId + "/status", "RUNNING");
             
             dockerService.executeJob(job, job.isPremium(), output -> {
-                // Stream output to WebSocket
-                messagingTemplate.convertAndSend("/topic/execution/" + jobId + "/output", output);
+                // Stream output to WebSocket - synchronized to preserve order
+                synchronized (this) {
+                    messagingTemplate.convertAndSend("/topic/execution/" + jobId + "/output", output);
+                }
             });
             
             if (job.getStatus() != com.codesync.execution.entity.JobStatus.TIME_OUT) {

@@ -30,6 +30,11 @@ public class CorsConfig {
         source.registerCorsConfiguration("/notifications/**", corsConfig);
         source.registerCorsConfiguration("/api/web/**", corsConfig);
         source.registerCorsConfiguration("/admin/**", corsConfig);
+        source.registerCorsConfiguration("/ws-execution/**", corsConfig);
+        source.registerCorsConfiguration("/ws-editor/**", corsConfig);
+        source.registerCorsConfiguration("/sessions-ws/**", corsConfig);
+        source.registerCorsConfiguration("/notifications-ws/**", corsConfig);
+        source.registerCorsConfiguration("/yjs/**", corsConfig);
         source.registerCorsConfiguration("/payments/**", corsConfig);
 
         return new CorsWebFilter(source);

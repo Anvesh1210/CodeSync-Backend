@@ -36,14 +36,14 @@ public class EditorController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest request) {
-        log.info("Registering user");
-        return ResponseEntity.ok(editorIntegrationService.register(request));
+    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
+        log.info("Registering user: {}", request.getEmail());
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(editorIntegrationService.register(request));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request) {
-        log.info("Login user");
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+        log.info("Login user: {}", request.getEmail());
         return ResponseEntity.ok(editorIntegrationService.login(request));
     }
 

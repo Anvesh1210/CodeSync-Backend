@@ -23,9 +23,11 @@ public interface AuthClient {
     @AllArgsConstructor
     class PremiumUpdateRequest {
         private UUID userId;
-        private boolean isPremium;
+        private boolean premium;
         private String planType;
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         private LocalDateTime subscriptionStart;
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         private LocalDateTime subscriptionExpiry;
     }
 }

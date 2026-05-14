@@ -40,11 +40,25 @@ public class Subscription {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @Enumerated(EnumType.STRING)
+    private BillingCycle billingCycle;
+
+    @Enumerated(EnumType.STRING)
+    private EntityType entityType;
+
     public enum PlanType {
         FREE, PRO
     }
 
     public enum SubscriptionStatus {
         ACTIVE, EXPIRED, CANCELLED
+    }
+
+    public enum BillingCycle {
+        MONTHLY, YEARLY
+    }
+
+    public enum EntityType {
+        INDIVIDUAL, TEAM
     }
 }

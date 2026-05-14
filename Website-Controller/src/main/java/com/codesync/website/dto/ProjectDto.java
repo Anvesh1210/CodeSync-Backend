@@ -3,6 +3,7 @@ package com.codesync.website.dto;
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.List;
 
 @Data
 public class ProjectDto {
@@ -10,6 +11,7 @@ public class ProjectDto {
     private String name;
     private String description;
     private String ownerId;
+    private String ownerUsername;
     private String language;
     private String visibility;
     private boolean archived;
@@ -19,4 +21,5 @@ public class ProjectDto {
     private int forkCount;
     private String sourceProjectId;
     private Set<String> memberUserIds;
+    private List<UserDto> members;
 }

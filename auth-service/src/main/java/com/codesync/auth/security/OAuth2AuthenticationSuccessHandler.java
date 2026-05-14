@@ -71,6 +71,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             }
 
             String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+            if (!normalizedEmail.contains("@")) {
+                normalizedEmail = normalizedEmail + "@" + registrationId.toLowerCase(Locale.ROOT) + ".com";
+            }
             String normalizedName = StringUtils.hasText(name) ? name : normalizedEmail.split("@")[0];
 
             log.info("OAuth2 authentication successful for provider: {}, email: {}", registrationId, normalizedEmail);

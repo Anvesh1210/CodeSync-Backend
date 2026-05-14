@@ -53,7 +53,8 @@ public class User {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    private boolean isPremium;
+    @Column(name = "is_premium")
+    private boolean premium;
 
     private String planType;
 

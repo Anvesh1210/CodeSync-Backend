@@ -27,4 +27,5 @@ public interface ExecutionService {
 
     ExecutionStats getExecutionStats();
     List<ExecutionResponse> getAllExecutions();
+    void refreshLanguages();
 }

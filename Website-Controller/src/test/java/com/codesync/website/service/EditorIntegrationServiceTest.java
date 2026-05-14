@@ -70,16 +70,16 @@ class EditorIntegrationServiceTest {
     void register_ShouldReturnSuccess() {
         when(authClient.register(any())).thenReturn(new Object());
         when(objectMapper.convertValue(any(), eq(AuthResponse.class))).thenReturn(new AuthResponse());
-        ApiResponse<AuthResponse> response = editorIntegrationService.register(new RegisterRequest());
-        assertTrue(response.isSuccess());
+        AuthResponse response = editorIntegrationService.register(new RegisterRequest());
+        assertNotNull(response);
     }
 
     @Test
     void login_ShouldReturnSuccess() {
         when(authClient.login(any())).thenReturn(new Object());
         when(objectMapper.convertValue(any(), eq(AuthResponse.class))).thenReturn(new AuthResponse());
-        ApiResponse<AuthResponse> response = editorIntegrationService.login(new LoginRequest());
-        assertTrue(response.isSuccess());
+        AuthResponse response = editorIntegrationService.login(new LoginRequest());
+        assertNotNull(response);
     }
 
     @Test

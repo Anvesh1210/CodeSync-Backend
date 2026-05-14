@@ -50,7 +50,7 @@ class PremiumUpdateControllerTest {
     void updatePremiumStatusShouldReturnOk() throws Exception {
         UUID userId = UUID.randomUUID();
         PremiumUpdateRequest request = new PremiumUpdateRequest(userId, true, "PRO", LocalDateTime.now(), LocalDateTime.now().plusDays(30));
-        UserResponse response = UserResponse.builder().userId(userId).isPremium(true).planType("PRO").build();
+        UserResponse response = UserResponse.builder().userId(userId).premium(true).planType("PRO").build();
 
         when(authService.updatePremiumStatus(any(PremiumUpdateRequest.class))).thenReturn(response);
 

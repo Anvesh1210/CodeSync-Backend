@@ -48,28 +48,16 @@ public class EditorIntegrationService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    public ApiResponse<AuthResponse> register(RegisterRequest request) {
-        log.info("Calling Auth Service for register user");
-        try {
-            Object response = authClient.register(request);
-            AuthResponse authResponse = objectMapper.convertValue(response, AuthResponse.class);
-            return ApiResponse.success(authResponse, "Registration initiated");
-        } catch (Exception e) {
-            log.error("Auth service registration failed: {}", e.getMessage());
-            return ApiResponse.error("Registration failed");
-        }
+    public AuthResponse register(RegisterRequest request) {
+        log.info("Calling Auth Service for register user: {}", request.getEmail());
+        Object response = authClient.register(request);
+        return objectMapper.convertValue(response, AuthResponse.class);
     }
 
-    public ApiResponse<AuthResponse> login(LoginRequest request) {
-        log.info("Calling Auth Service for login");
-        try {
-            Object response = authClient.login(request);
-            AuthResponse authResponse = objectMapper.convertValue(response, AuthResponse.class);
-            return ApiResponse.success(authResponse, "Login successful");
-        } catch (Exception e) {
-            log.error("Auth service login failed: {}", e.getMessage());
-            return ApiResponse.error("Login failed");
-        }
+    public AuthResponse login(LoginRequest request) {
+        log.info("Calling Auth Service for login: {}", request.getEmail());
+        Object response = authClient.login(request);
+        return objectMapper.convertValue(response, AuthResponse.class);
     }
 
     public ApiResponse<UserDto> getUserProfile(String id) {
@@ -100,6 +88,7 @@ public class EditorIntegrationService {
         try {
             Object response = projectClient.getProjectById(id, userId, callerRole);
             ProjectDto projectDto = objectMapper.convertValue(response, ProjectDto.class);
+            enrichProject(projectDto);
             return ApiResponse.success(projectDto, "Project fetched");
         } catch (Exception e) {
             log.error("[Service] Project fetch failed for {}: {}", id, e.getMessage());
@@ -579,6 +568,61 @@ public class EditorIntegrationService {
             }
             log.error("Error validating project access for user {} on project {}: {}", userId, projectId, e.getMessage());
             throw new RuntimeException("Failed to validate project permissions");
+        }
+    }
+    public void enrichProjects(java.util.List<ProjectDto> projects) {
+        if (projects == null || projects.isEmpty()) return;
+        for (ProjectDto project : projects) {
+            enrichProject(project);
+        }
+    }
+
+    private void enrichProject(ProjectDto project) {
+        if (project == null) return;
+
+        // Enrich owner
+        if (project.getOwnerId() != null) {
+            try {
+                Object userObj = authClient.getUserById(project.getOwnerId());
+                if (userObj instanceof java.util.Map) {
+                    java.util.Map<String, Object> userMap = (java.util.Map<String, Object>) userObj;
+                    java.util.Map<String, Object> data = userMap;
+                    if (userMap.containsKey("data") && userMap.get("data") instanceof java.util.Map) {
+                        data = (java.util.Map<String, Object>) userMap.get("data");
+                    }
+                    project.setOwnerUsername(data.get("username").toString());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to enrich owner {} for project {}", project.getOwnerId(), project.getProjectId());
+                project.setOwnerUsername("User-" + project.getOwnerId().substring(0, 8));
+            }
+        }
+
+        // Enrich members
+        if (project.getMemberUserIds() != null && !project.getMemberUserIds().isEmpty()) {
+            java.util.List<UserDto> membersList = new java.util.ArrayList<>();
+            for (String memberId : project.getMemberUserIds()) {
+                try {
+                    Object userObj = authClient.getUserById(memberId);
+                    if (userObj instanceof java.util.Map) {
+                        java.util.Map<String, Object> userMap = (java.util.Map<String, Object>) userObj;
+                        java.util.Map<String, Object> data = userMap;
+                        if (userMap.containsKey("data") && userMap.get("data") instanceof java.util.Map) {
+                            data = (java.util.Map<String, Object>) userMap.get("data");
+                        }
+                        UserDto userDto = UserDto.builder()
+                                .id(data.get("userId").toString())
+                                .username(data.get("username").toString())
+                                .fullName(data.get("fullName") != null ? data.get("fullName").toString() : null)
+                                .avatarUrl(data.get("avatarUrl") != null ? data.get("avatarUrl").toString() : null)
+                                .build();
+                        membersList.add(userDto);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to enrich member {} for project {}", memberId, project.getProjectId());
+                }
+            }
+            project.setMembers(membersList);
         }
     }
 }

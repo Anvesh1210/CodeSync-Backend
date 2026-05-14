@@ -30,6 +30,8 @@ public class ExecutionRequest {
     private String sourceCode;
 
     private String stdin;
+    
+    private String fileName;
 
-    private boolean isPremium;
+    private Boolean isPremium;
 }

@@ -518,7 +518,7 @@ public class AuthServiceImpl implements AuthService {
                 .avatarUrl(user.getAvatarUrl())
                 .provider(user.getProvider())
                 .isActive(user.isActive())
-                .isPremium(user.isPremium())
+                .premium(user.isPremium())
                 .planType(user.getPlanType())
                 .subscriptionStart(user.getSubscriptionStart())
                 .subscriptionExpiry(user.getSubscriptionExpiry())

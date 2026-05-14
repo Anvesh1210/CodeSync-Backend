@@ -38,7 +38,10 @@ public class DockerService {
 
         try {
             Path tempDir = Files.createTempDirectory("codesync-job-" + job.getJobId());
-            String fileName = config.getDefaultFileName() != null ? config.getDefaultFileName() : "main." + config.getExtension();
+            String fileName = job.getFileName();
+            if (fileName == null || fileName.isEmpty()) {
+                fileName = config.getDefaultFileName() != null ? config.getDefaultFileName() : "main." + config.getExtension();
+            }
             Path sourceFile = tempDir.resolve(fileName);
             Files.writeString(sourceFile, job.getSourceCode());
 
@@ -96,6 +99,7 @@ public class DockerService {
         } catch (Exception e) {
             log.error("Docker execution error: {}", e.getMessage());
             job.setStderr("Docker execution error: " + e.getMessage());
+            job.setStatus(com.codesync.execution.entity.JobStatus.FAILED);
         } finally {
             job.setExecutionTimeMs(System.currentTimeMillis() - start);
             job.setMemoryUsedKb(2048L); // Simulated
@@ -104,7 +108,11 @@ public class DockerService {
 
     private String[] buildDockerCommand(LanguageConfig config, String dir, String file, String memoryLimit) {
         String workDir = "/app";
-        String volume = dir + ":" + workDir;
+        // Convert Windows backslashes to forward slashes for Docker volume mapping
+        String normalizedDir = dir.replace("\\", "/");
+        // For Docker on Windows (Git Bash/WSL), sometimes it needs a leading slash or drive letter conversion
+        // But usually C:/path works for Docker Desktop.
+        String volume = normalizedDir + ":" + workDir;
         
         List<String> cmdList = new ArrayList<>();
         cmdList.add("docker");
@@ -125,12 +133,32 @@ public class DockerService {
         cmdList.add("sh");
         cmdList.add("-c");
         
+        String fileNoExt = file.contains(".") ? file.substring(0, file.lastIndexOf('.')) : file;
+        
+        String compileCmd = config.getCompileCommand();
+        String runCmd = config.getRunCommand();
+
+        if (compileCmd != null) {
+            compileCmd = compileCmd.replace("{file}", file).replace("{file_no_ext}", fileNoExt);
+            // Fallback for hardcoded "Main.java" or "main.cpp"
+            if (file.toLowerCase().endsWith(".java")) compileCmd = compileCmd.replace("Main.java", file);
+            if (file.toLowerCase().endsWith(".cpp")) compileCmd = compileCmd.replace("main.cpp", file);
+        }
+
+        if (runCmd != null) {
+            runCmd = runCmd.replace("{file}", file).replace("{file_no_ext}", fileNoExt);
+            // Fallback for hardcoded "java Main" or "python main.py" or "./main"
+            if (file.toLowerCase().endsWith(".java")) runCmd = runCmd.replace("Main", fileNoExt);
+            if (file.toLowerCase().endsWith(".py")) runCmd = runCmd.replace("main.py", file);
+            if (file.toLowerCase().endsWith(".cpp")) runCmd = runCmd.replace("main", fileNoExt);
+            if (file.toLowerCase().endsWith(".js")) runCmd = runCmd.replace("main.js", file);
+        }
+
         String shellCmd;
         if (config.isInterpreted()) {
-            shellCmd = config.getRunCommand().replace("{file}", file) + " < input.txt";
+            shellCmd = runCmd + " < input.txt";
         } else {
-            shellCmd = config.getCompileCommand().replace("{file}", file) + " && " + 
-                       config.getRunCommand() + " < input.txt";
+            shellCmd = compileCmd + " && " + runCmd + " < input.txt";
         }
         
         cmdList.add(shellCmd);

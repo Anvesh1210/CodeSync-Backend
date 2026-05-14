@@ -86,4 +86,11 @@ public class ExecutionController {
     public ResponseEntity<ExecutionStats> getExecutionStats() {
         return ResponseEntity.ok(executionService.getExecutionStats());
     }
+
+    @PostMapping("/languages/refresh")
+    @Operation(summary = "Refresh language configuration cache from database")
+    public ResponseEntity<Void> refreshLanguages() {
+        executionService.refreshLanguages();
+        return ResponseEntity.ok().build();
+    }
 }

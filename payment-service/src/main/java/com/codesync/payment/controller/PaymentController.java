@@ -51,7 +51,16 @@ public class PaymentController {
             @RequestHeader("X-Razorpay-Signature") String signature) {
         paymentService.handleWebhook(payload, signature);
         return ResponseEntity.ok().build();
-       
+    }
 
+    // ── Admin endpoints ──────────────────────────────────────────────────────
+    @GetMapping("/admin/subscriptions")
+    public ResponseEntity<java.util.List<Subscription>> getAllSubscriptions() {
+        return ResponseEntity.ok(paymentService.getAllSubscriptions());
+    }
+
+    @GetMapping("/admin/transactions")
+    public ResponseEntity<java.util.List<com.codesync.payment.entity.Transaction>> getAllTransactions() {
+        return ResponseEntity.ok(paymentService.getAllTransactions());
     }
 }
