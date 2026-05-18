@@ -10,6 +10,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       timeout: 20s
@@ -32,6 +33,7 @@ services:
   # Service Discovery
   eureka-service:
     build: ./eureka-service
+    env_file: .env
     ports:
       - "8761:8761"
     environment:
@@ -41,6 +43,7 @@ services:
   # API Gateway
   api-gateway:
     build: ./api-gateway
+    env_file: .env
     ports:
       - "8762:8762"
     environment:
@@ -53,17 +56,24 @@ services:
   # Microservices
   auth-service:
     build: ./auth-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=auth-service
       - AUTH_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_auth_db?createDatabaseIfNotExist=true
+      - REDIS_HOST=codesync-redis
     depends_on:
       codesync-mysql:
         condition: service_healthy
+      codesync-redis:
+        condition: service_started
 
   project-service:
     build: ./project-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=project-service
       - PROJECT_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_project_db?createDatabaseIfNotExist=true
     depends_on:
       codesync-mysql:
@@ -71,8 +81,10 @@ services:
 
   file-service:
     build: ./file-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=file-service
       - FILE_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_file_db?createDatabaseIfNotExist=true
     depends_on:
       codesync-mysql:
@@ -80,12 +92,17 @@ services:
 
   execution-service:
     build: ./execution-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=execution-service
       - EXECUTION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_execution_db?createDatabaseIfNotExist=true
       - RABBITMQ_HOST=codesync-rabbitmq
+      - DOCKER_VOLUME_NAME=codesync_temp_data
+      - DOCKER_TEMP_DIR=/tmp/codesync
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - codesync_temp_data:/tmp/codesync
     depends_on:
       codesync-mysql:
         condition: service_healthy
@@ -94,8 +111,10 @@ services:
 
   notification-service:
     build: ./notification-Service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=notification-service
       - NOTIFICATION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_notification_db?createDatabaseIfNotExist=true
     depends_on:
       codesync-mysql:
@@ -103,8 +122,10 @@ services:
 
   payment-service:
     build: ./payment-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=payment-service
       - PAYMENT_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_payment?createDatabaseIfNotExist=true
     depends_on:
       codesync-mysql:
@@ -112,8 +133,10 @@ services:
 
   session-service:
     build: ./Session-Service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=session-service
       - SESSION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_session_db?createDatabaseIfNotExist=true
       - REDIS_HOST=codesync-redis
     depends_on:
@@ -124,16 +147,20 @@ services:
 
   website-controller:
     build: ./Website-Controller
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=website-controller
     depends_on:
       eureka-service:
         condition: service_started
 
   version-service:
     build: ./version-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=version-service
       - VERSION_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_version_db?createDatabaseIfNotExist=true
     depends_on:
       codesync-mysql:
@@ -141,8 +168,10 @@ services:
 
   comment-service:
     build: ./comment-service
+    env_file: .env
     environment:
       - EUREKA_URL=http://eureka-service:8761/eureka/
+      - EUREKA_HOSTNAME=comment-service
       - COMMENT_DB_URL=jdbc:mysql://codesync-mysql:3306/codesync_comment_db?createDatabaseIfNotExist=true
     depends_on:
       codesync-mysql:
@@ -157,3 +186,5 @@ services:
 
 volumes:
   mysql_data:
+  codesync_temp_data:
+    name: codesync_temp_data
