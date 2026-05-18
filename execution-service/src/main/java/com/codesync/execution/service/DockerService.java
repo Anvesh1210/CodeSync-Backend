@@ -26,8 +26,15 @@ public class DockerService {
 
     private final LanguageRegistry languageRegistry;
 
+    @org.springframework.beans.factory.annotation.Value("${DOCKER_VOLUME_NAME:}")
+    private String dockerVolumeName;
+
+    @org.springframework.beans.factory.annotation.Value("${DOCKER_TEMP_DIR:}")
+    private String dockerTempDir;
+
     public void executeJob(ExecutionJob job, boolean isPremium, Consumer<String> outputStream) {
-        log.info("Executing job {} | language={} | isPremium={}", job.getJobId(), job.getLanguage(), isPremium);
+        log.info("Executing job {} | language={} | isPremium={} | dockerVolumeName={} | dockerTempDir={}", 
+                job.getJobId(), job.getLanguage(), isPremium, dockerVolumeName, dockerTempDir);
         long start = System.currentTimeMillis();
 
         LanguageConfig config = languageRegistry.getConfig(job.getLanguage())
@@ -37,22 +44,34 @@ public class DockerService {
         String memoryLimit = isPremium ? "512m" : config.getMemoryLimit();
 
         try {
-            Path tempDir = Files.createTempDirectory("codesync-job-" + job.getJobId());
+            Path tempDir;
+            if (dockerTempDir != null && !dockerTempDir.isEmpty()) {
+                Path baseDir = Path.of(dockerTempDir);
+                if (!Files.exists(baseDir)) Files.createDirectories(baseDir);
+                tempDir = Files.createTempDirectory(baseDir, "codesync-job-" + job.getJobId());
+            } else {
+                tempDir = Files.createTempDirectory("codesync-job-" + job.getJobId());
+            }
+            log.info(">>>> [DockerService] Created temp directory: {}", tempDir.toAbsolutePath());
+            
             String fileName = job.getFileName();
             if (fileName == null || fileName.isEmpty()) {
                 fileName = config.getDefaultFileName() != null ? config.getDefaultFileName() : "main." + config.getExtension();
             }
             Path sourceFile = tempDir.resolve(fileName);
             Files.writeString(sourceFile, job.getSourceCode());
+            log.debug(">>>> [DockerService] Wrote source code to {}", sourceFile);
 
             // Write stdin to input.txt
             Path inputFile = tempDir.resolve("input.txt");
             Files.writeString(inputFile, job.getStdin() != null ? job.getStdin() : "");
 
             String[] command = buildDockerCommand(config, tempDir.toAbsolutePath().toString(), fileName, memoryLimit);
+            log.info(">>>> [DockerService] Executing command: {}", String.join(" ", command));
             
             ProcessBuilder pb = new ProcessBuilder(command);
             Process process = pb.start();
+            log.debug(">>>> [DockerService] Process started for job {}", job.getJobId());
 
             StringBuilder stdout = new StringBuilder();
             StringBuilder stderr = new StringBuilder();
@@ -108,12 +127,25 @@ public class DockerService {
 
     private String[] buildDockerCommand(LanguageConfig config, String dir, String file, String memoryLimit) {
         String workDir = "/app";
-        // Convert Windows backslashes to forward slashes for Docker volume mapping
-        String normalizedDir = dir.replace("\\", "/");
-        // For Docker on Windows (Git Bash/WSL), sometimes it needs a leading slash or drive letter conversion
-        // But usually C:/path works for Docker Desktop.
-        String volume = normalizedDir + ":" + workDir;
+        String volume;
+
+        // Check if we are running in a dockerized environment with a named volume
+        if (dockerVolumeName != null && !dockerVolumeName.isEmpty() && dockerTempDir != null && dir.startsWith(dockerTempDir)) {
+            String relativePath = dir.substring(dockerTempDir.length());
+            if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+            
+            volume = dockerVolumeName + ":/codesync";
+            workDir = "/codesync/" + relativePath;
+        } else {
+            // Convert Windows backslashes to forward slashes for Docker volume mapping
+            String normalizedDir = dir.replace("\\", "/");
+            // For Docker on Windows (Git Bash/WSL), sometimes it needs a leading slash or drive letter conversion
+            // But usually C:/path works for Docker Desktop.
+            volume = normalizedDir + ":" + workDir;
+        }
         
+        log.info("Built Docker volume mapping: {} for workDir: {}", volume, workDir);
+
         List<String> cmdList = new ArrayList<>();
         cmdList.add("docker");
         cmdList.add("run");
@@ -172,12 +204,30 @@ public class DockerService {
         if (config == null || config.getCompileCommand() == null) return errors;
 
         try {
-            Path tempDir = Files.createTempDirectory("codesync-lint-" + UUID.randomUUID());
+            Path tempDir;
+            if (dockerTempDir != null && !dockerTempDir.isEmpty()) {
+                Path baseDir = Path.of(dockerTempDir);
+                if (!Files.exists(baseDir)) Files.createDirectories(baseDir);
+                tempDir = Files.createTempDirectory(baseDir, "codesync-lint-" + UUID.randomUUID());
+            } else {
+                tempDir = Files.createTempDirectory("codesync-lint-" + UUID.randomUUID());
+            }
+            
             String fileName = config.getDefaultFileName() != null ? config.getDefaultFileName() : "main." + config.getExtension();
             Files.writeString(tempDir.resolve(fileName), request.getSourceCode());
 
             String workDir = "/app";
-            String volume = tempDir.toAbsolutePath().toString() + ":" + workDir;
+            String volume;
+            String dir = tempDir.toAbsolutePath().toString();
+
+            if (dockerVolumeName != null && !dockerVolumeName.isEmpty() && dockerTempDir != null && dir.startsWith(dockerTempDir)) {
+                String relativePath = dir.substring(dockerTempDir.length());
+                if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+                volume = dockerVolumeName + ":/codesync";
+                workDir = "/codesync/" + relativePath;
+            } else {
+                volume = dir.replace("\\", "/") + ":" + workDir;
+            }
             
             String lintCmd = config.isInterpreted() ? 
                     config.getRunCommand().replace("{file}", fileName) : 

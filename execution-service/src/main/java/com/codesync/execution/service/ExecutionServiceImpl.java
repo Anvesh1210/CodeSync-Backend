@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.amqp.core.AmqpTemplate;
+import com.codesync.execution.config.RabbitMQConfig;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -23,10 +24,10 @@ public class ExecutionServiceImpl implements ExecutionService {
 
     private final ExecutionRepository executionRepository;
     private final AmqpTemplate amqpTemplate;
-    private final com.codesync.execution.config.RabbitMQConfig rabbitMQConfig;
     private final DockerService dockerService;
 
     private final LanguageRegistry languageRegistry;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
@@ -52,17 +53,36 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         ExecutionJob saved = executionRepository.save(job);
         UUID jobId = saved.getJobId();
+        log.info("Job {} saved to database with status {}", jobId, saved.getStatus());
+
+        // Publish QUEUED status via WebSocket
+        String statusTopic = "/topic/execution/" + jobId + "/status";
+        log.info("[PUBLISH] Publishing status QUEUED to topic: {}", statusTopic);
+        messagingTemplate.convertAndSend(statusTopic, "QUEUED");
 
         // Submit to RabbitMQ for asynchronous execution ONLY after transaction commits
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                log.info("Transaction committed. Sending job {} to RabbitMQ", jobId);
-                amqpTemplate.convertAndSend(com.codesync.execution.config.RabbitMQConfig.EXCHANGE_EXECUTION, 
-                                            com.codesync.execution.config.RabbitMQConfig.ROUTING_KEY_JOBS, 
-                                            jobId);
-            }
-        });
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            log.debug("Transaction synchronization active. Registering afterCommit for job {}", jobId);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    log.info(">>>> [ExecutionService] Transaction committed. Sending job {} to RabbitMQ", jobId);
+                    try {
+                        amqpTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_EXECUTION, 
+                                                    RabbitMQConfig.ROUTING_KEY_JOBS, 
+                                                    jobId);
+                        log.info(">>>> [ExecutionService] Job {} successfully sent to RabbitMQ", jobId);
+                    } catch (Exception e) {
+                        log.error(">>>> [ExecutionService] Failed to send job {} to RabbitMQ: {}", jobId, e.getMessage());
+                    }
+                }
+            });
+        } else {
+            log.warn(">>>> [ExecutionService] No active transaction synchronization. Sending job {} to RabbitMQ immediately.", jobId);
+            amqpTemplate.convertAndSend(com.codesync.execution.config.RabbitMQConfig.EXCHANGE_EXECUTION, 
+                                        com.codesync.execution.config.RabbitMQConfig.ROUTING_KEY_JOBS, 
+                                        jobId);
+        }
 
         return toResponse(saved);
     }
