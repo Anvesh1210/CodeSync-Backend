@@ -15,6 +15,9 @@ public interface AuthServiceClient {
     @PostMapping("/auth/verify-otp")
     Object verifyOtp(@RequestBody Object request);
 
+    @PostMapping("/auth/validate-otp")
+    Object validateOtp(@RequestBody Object request);
+
     @PostMapping("/auth/resend-otp")
     Object resendOtp(@RequestBody Object request);
 

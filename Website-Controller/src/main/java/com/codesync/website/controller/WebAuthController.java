@@ -32,6 +32,17 @@ public class WebAuthController {
         return ResponseEntity.ok(authServiceClient.verifyOtp(request));
     }
 
+    @PostMapping("/validate-otp")
+    public ResponseEntity<Object> validateOtp(@RequestBody Object request) {
+        try {
+            return ResponseEntity.ok(authServiceClient.validateOtp(request));
+        } catch (feign.FeignException.Unauthorized e) {
+            java.util.Map<String, String> error = new java.util.HashMap<>();
+            error.put("message", "Invalid or expired OTP");
+            return ResponseEntity.status(401).body(error);
+        }
+    }
+
     @PostMapping("/resend-otp")
     public ResponseEntity<Object> resendOtp(@RequestBody Object request) {
         return ResponseEntity.ok(authServiceClient.resendOtp(request));
