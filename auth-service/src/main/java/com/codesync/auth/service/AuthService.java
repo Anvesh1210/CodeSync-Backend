@@ -20,6 +20,7 @@ import java.util.UUID;
 public interface AuthService {
     AuthResponse register(RegisterRequest request);
     AuthResponse verifyOtp(VerifyOtpRequest request);
+    MessageResponse validateOtp(com.codesync.auth.dto.request.ValidateOtpRequest request);
     MessageResponse resendOtp(ResendOtpRequest request);
     AuthResponse login(LoginRequest request);
     AuthResponse oauthLogin(OAuthLoginRequest request);

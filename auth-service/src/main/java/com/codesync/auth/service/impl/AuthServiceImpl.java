@@ -181,6 +181,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public MessageResponse validateOtp(com.codesync.auth.dto.request.ValidateOtpRequest request) {
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        String key = buildOtpKey(normalizedEmail);
+        String savedOtp = redisTemplate.opsForValue().get(key);
+        
+        if (savedOtp == null || !savedOtp.equals(request.getOtp())) {
+            throw new UnauthorizedException("Invalid or expired OTP");
+        }
+        
+        return new MessageResponse("OTP is valid");
+    }
+
+    @Override
     public MessageResponse resendOtp(ResendOtpRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
         if (!userRepository.existsByEmail(normalizedEmail)) {
@@ -192,9 +205,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        String normalizedEmail = normalizeEmail(request.getEmail());
-        User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+        String identifier = request.getEmail();
+        if (identifier == null || identifier.trim().isEmpty()) {
+            throw new BadRequestException("Email or Username is required");
+        }
+        String normalizedEmail = identifier.trim().toLowerCase(Locale.ROOT);
+        String originalIdentifier = identifier.trim();
+        
+        User user = userRepository.findByEmailOrUsername(normalizedEmail, originalIdentifier)
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or username or password"));
 
         if (!user.isActive()) {
             throw new UnauthorizedException("Account is deactivated");
@@ -202,9 +221,9 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(normalizedEmail, request.getPassword()));
+                    new UsernamePasswordAuthenticationToken(user.getEmail(), request.getPassword()));
         } catch (BadCredentialsException exception) {
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException("Invalid email or username or password");
         }
 
         tokenStateService.revokeAllRefreshTokens(user.getEmail());

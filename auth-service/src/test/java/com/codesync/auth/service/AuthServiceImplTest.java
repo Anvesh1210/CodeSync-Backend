@@ -203,7 +203,7 @@ class AuthServiceImplTest {
 	void loginShouldReturnTokensWhenCredentialsAreValid() {
 		LoginRequest request = new LoginRequest("anvesh@example.com", "strongPass123");
 		
-		when(userRepository.findByEmail("anvesh@example.com")).thenReturn(Optional.of(dbUser));
+		when(userRepository.findByEmailOrUsername("anvesh@example.com", "anvesh@example.com")).thenReturn(Optional.of(dbUser));
 		when(userDetailsService.loadUserByUsername("anvesh@example.com")).thenReturn(userDetails);
 		when(jwtService.generateAccessToken(any(), any(), any(), anyBoolean(), any())).thenReturn("access-token");
 		
@@ -217,7 +217,7 @@ class AuthServiceImplTest {
 	@Test
 	void loginShouldThrowUnauthorizedOnBadCredentials() {
 		LoginRequest request = new LoginRequest("anvesh@example.com", "wrong");
-		when(userRepository.findByEmail("anvesh@example.com")).thenReturn(Optional.of(dbUser));
+		when(userRepository.findByEmailOrUsername("anvesh@example.com", "anvesh@example.com")).thenReturn(Optional.of(dbUser));
 		doThrow(new BadCredentialsException("bad")).when(authenticationManager).authenticate(any());
 		
 		assertThatThrownBy(() -> authService.login(request))
@@ -228,7 +228,7 @@ class AuthServiceImplTest {
 	void loginShouldThrowUnauthorizedWhenUserIsInactive() {
 		LoginRequest request = new LoginRequest("anvesh@example.com", "strongPass123");
 		dbUser.setActive(false);
-		when(userRepository.findByEmail("anvesh@example.com")).thenReturn(Optional.of(dbUser));
+		when(userRepository.findByEmailOrUsername("anvesh@example.com", "anvesh@example.com")).thenReturn(Optional.of(dbUser));
 		
 		assertThatThrownBy(() -> authService.login(request))
 				.isInstanceOf(UnauthorizedException.class);

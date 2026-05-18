@@ -33,7 +33,7 @@ class CustomUserDetailsServiceTest {
                 .role(UserRole.DEVELOPER)
                 .isActive(true)
                 .build();
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailOrUsername("test@example.com", "test@example.com")).thenReturn(Optional.of(user));
 
         UserDetails userDetails = customUserDetailsService.loadUserByUsername("test@example.com");
         assertEquals("test@example.com", userDetails.getUsername());
@@ -43,7 +43,7 @@ class CustomUserDetailsServiceTest {
 
     @Test
     void loadUserByUsernameNotFound() {
-        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailOrUsername("unknown@example.com", "unknown@example.com")).thenReturn(Optional.empty());
         assertThrows(UsernameNotFoundException.class, () -> customUserDetailsService.loadUserByUsername("unknown@example.com"));
     }
 }

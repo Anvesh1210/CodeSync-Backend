@@ -63,6 +63,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.verifyOtp(request));
     }
 
+    @PostMapping("/validate-otp")
+    public ResponseEntity<MessageResponse> validateOtp(@Valid @RequestBody com.codesync.auth.dto.request.ValidateOtpRequest request) {
+        return ResponseEntity.ok(authService.validateOtp(request));
+    }
+
     @PostMapping("/resend-otp")
     public ResponseEntity<MessageResponse> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         return ResponseEntity.ok(authService.resendOtp(request));
