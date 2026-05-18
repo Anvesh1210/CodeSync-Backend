@@ -33,6 +33,8 @@ public class FileServiceImpl implements FileService {
     public FileResponse createFile(FileRequest request) {
         log.info("Creating file '{}' in project {}", request.getName(), request.getProjectId());
         
+        checkNameCollision(request.getProjectId(), request.getParentId(), request.getName());
+        
         long limit = request.isPremium() ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
         long currentSize = calculateProjectStorage(request.getProjectId());
         long newFileSize = request.getContent() != null ? request.getContent().length() : 0;
@@ -119,7 +121,9 @@ public class FileServiceImpl implements FileService {
     @Transactional
     public FileResponse renameFile(UUID fileId, String newName, UUID userId) {
         log.info("Renaming file/folder {} to '{}'", fileId, newName);
+        
         return fileRepository.findByFileId(fileId).filter(f -> !f.isDeleted()).map(file -> {
+            checkNameCollision(file.getProjectId(), file.getFolderId(), newName);
             file.setName(newName);
             file.setLastEditedBy(userId);
             return toResponse(fileRepository.save(file));
@@ -127,6 +131,8 @@ public class FileServiceImpl implements FileService {
             CodeFolder folder = folderRepository.findByFolderId(fileId)
                     .filter(f -> !f.isDeleted())
                     .orElseThrow(() -> new RuntimeException("File/Folder not found: " + fileId));
+            
+            checkNameCollision(folder.getProjectId(), folder.getParentFolderId(), newName);
             folder.setName(newName);
             folder.setLastEditedBy(userId);
             return toResponse(folderRepository.save(folder));
@@ -188,6 +194,9 @@ public class FileServiceImpl implements FileService {
     @Transactional
     public FileResponse createFolder(FileRequest request) {
         log.info("Creating folder '{}' in project {} with parent {}", request.getName(), request.getProjectId(), request.getParentId());
+        
+        checkNameCollision(request.getProjectId(), request.getParentId(), request.getName());
+        
         CodeFolder folder = CodeFolder.builder()
                 .projectId(request.getProjectId())
                 .name(request.getName())
@@ -317,5 +326,22 @@ public class FileServiceImpl implements FileService {
                 .createdAt(folder.getCreatedAt())
                 .updatedAt(folder.getUpdatedAt())
                 .build();
+    }
+
+    private void checkNameCollision(UUID projectId, UUID parentId, String name) {
+        boolean fileExists;
+        boolean folderExists;
+
+        if (parentId == null) {
+            fileExists = fileRepository.existsByNameAndProjectIdAndFolderIdIsNullAndIsDeleted(name, projectId, false);
+            folderExists = folderRepository.existsByNameAndProjectIdAndParentFolderIdIsNullAndIsDeleted(name, projectId, false);
+        } else {
+            fileExists = fileRepository.existsByNameAndProjectIdAndFolderIdAndIsDeleted(name, projectId, parentId, false);
+            folderExists = folderRepository.existsByNameAndProjectIdAndParentFolderIdAndIsDeleted(name, projectId, parentId, false);
+        }
+
+        if (fileExists || folderExists) {
+            throw new RuntimeException("A file or folder with the name '" + name + "' already exists in this location.");
+        }
     }
 }

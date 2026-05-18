@@ -12,4 +12,8 @@ import java.util.UUID;
 public interface FolderRepository extends JpaRepository<CodeFolder, UUID> {
     List<CodeFolder> findByProjectIdAndIsDeleted(UUID projectId, boolean isDeleted);
     Optional<CodeFolder> findByFolderId(UUID folderId);
+    
+    boolean existsByNameAndProjectIdAndParentFolderIdAndIsDeleted(String name, UUID projectId, UUID parentFolderId, boolean isDeleted);
+    
+    boolean existsByNameAndProjectIdAndParentFolderIdIsNullAndIsDeleted(String name, UUID projectId, boolean isDeleted);
 }

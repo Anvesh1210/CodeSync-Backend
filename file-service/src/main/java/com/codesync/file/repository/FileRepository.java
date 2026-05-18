@@ -24,4 +24,8 @@ public interface FileRepository extends JpaRepository<CodeFile, UUID> {
     @Query("SELECT f FROM CodeFile f WHERE f.projectId = :projectId AND f.isDeleted = false " +
            "AND (LOWER(CAST(f.name AS string)) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(f.content AS string)) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<CodeFile> searchInProject(@Param("projectId") UUID projectId, @Param("query") String query);
+
+    boolean existsByNameAndProjectIdAndFolderIdAndIsDeleted(String name, UUID projectId, UUID folderId, boolean isDeleted);
+    
+    boolean existsByNameAndProjectIdAndFolderIdIsNullAndIsDeleted(String name, UUID projectId, boolean isDeleted);
 }
