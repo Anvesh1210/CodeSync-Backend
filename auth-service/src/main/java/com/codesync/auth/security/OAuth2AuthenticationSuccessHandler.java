@@ -101,11 +101,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private void handleExistingUser(HttpServletRequest request, HttpServletResponse response, User existingUser, 
                                   AuthProvider provider, String email, String name, String registrationId) throws IOException {
-        if (existingUser.getProvider() != provider) {
-            sendErrorRedirect(request, response, "oauth_provider_mismatch", 
-                    "Account exists with " + existingUser.getProvider() + ". Use that login method.");
-            return;
-        }
 
         AuthResponse authResponse = authServiceProvider.getObject().oauthLogin(OAuthLoginRequest.builder()
                 .provider(provider)

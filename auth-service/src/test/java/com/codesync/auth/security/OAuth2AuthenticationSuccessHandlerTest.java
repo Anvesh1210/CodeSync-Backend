@@ -101,9 +101,14 @@ class OAuth2AuthenticationSuccessHandlerTest {
         User user = User.builder().email("mismatch@example.com").provider(AuthProvider.GITHUB).build();
         when(userRepository.findByEmail("mismatch@example.com")).thenReturn(Optional.of(user));
 
+        AuthService authService = mock(AuthService.class);
+        when(authServiceProvider.getObject()).thenReturn(authService);
+        when(authService.oauthLogin(any())).thenReturn(AuthResponse.builder().accessToken("at").refreshToken("rt").build());
+
         successHandler.onAuthenticationSuccess(request, response, authentication);
 
-        verify(redirectStrategy).sendRedirect(eq(request), eq(response), contains("error=oauth_provider_mismatch"));
+        // Account linking is now enabled, so it should redirect to success callback
+        verify(redirectStrategy).sendRedirect(eq(request), eq(response), contains("/auth/oauth-callback"));
     }
 
     @Test

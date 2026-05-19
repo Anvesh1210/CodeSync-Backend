@@ -305,12 +305,17 @@ class AuthServiceImplTest {
 	}
 	
 	@Test
-	void oauthLoginShouldRejectWhenLocalAccountAlreadyExists() {
+	void oauthLoginShouldSucceedWhenLocalAccountAlreadyExists() {
 		OAuthLoginRequest request = OAuthLoginRequest.builder().provider(AuthProvider.GOOGLE).email("anvesh@example.com").build();
 		when(userRepository.findByEmail("anvesh@example.com")).thenReturn(Optional.of(dbUser));
+		when(userDetailsService.loadUserByUsername("anvesh@example.com")).thenReturn(userDetails);
+		when(jwtService.generateAccessToken(any(), any(), any(), anyBoolean(), any())).thenReturn("oauth-access");
+		when(jwtService.generateRefreshToken(any())).thenReturn("oauth-refresh");
 
-		assertThatThrownBy(() -> authService.oauthLogin(request))
-				.isInstanceOf(ConflictException.class);
+		AuthResponse response = authService.oauthLogin(request);
+		
+		assertThat(response.getAccessToken()).isEqualTo("oauth-access");
+		assertThat(response.getUser().getEmail()).isEqualTo("anvesh@example.com");
 	}
 
 	@Test

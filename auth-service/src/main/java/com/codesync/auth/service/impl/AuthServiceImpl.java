@@ -236,8 +236,11 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = normalizeEmail(request.getEmail());
         User user = userRepository.findByEmail(normalizedEmail)
                 .map(existingUser -> {
-                    if (existingUser.getProvider() != request.getProvider()) {
-                        throw new ConflictException("Account exists with " + existingUser.getProvider() + ". Use regular login.");
+                    // Update avatar if missing and provided by OAuth
+                    if ((existingUser.getAvatarUrl() == null || existingUser.getAvatarUrl().isBlank()) 
+                            && request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()) {
+                        existingUser.setAvatarUrl(request.getAvatarUrl());
+                        userRepository.save(existingUser);
                     }
                     return existingUser;
                 })
