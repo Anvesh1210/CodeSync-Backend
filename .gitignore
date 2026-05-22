@@ -1,0 +1,17 @@
+/.metadata/
+*.log
+*.txt
+*.csv
+*.fullname
+*.ps1
+.env
+target/
+.idea/
+.vscode/
+*.class
+*.jar
+*.py
+Code Collaboration Case Study - Java.pdf
+sonar-run.bat
+.env.example
+      
